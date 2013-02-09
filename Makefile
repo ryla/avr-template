@@ -15,10 +15,15 @@ MCU = atmega328p
 SOURCES = main.c
 # OUTDIR: directory to use for output
 OUTDIR = build
+# PROGRAMMER: name of programmer
+PROGRAMMER = dragon_isp
+# PORT: location of programmer
+PORT = usb
 # define flags
 CFLAGS = -mmcu=$(MCU) -g -Os -Wall -Wunused
 ASFLAGS = -mmcu=$(MCU) -x assembler-with-cpp -Wa,-gstabs
 LDFLAGS = -mmcu=$(MCU) -Wl,-Map=$(OUTDIR)/$(TARGET).map
+AVRDUDE_FLAGS = -p $(MCU) -c $(PROGRAMMER) -P $(PORT)
 #######################################
 # end of user configuration
 #######################################
@@ -35,6 +40,7 @@ NM      = avr-nm
 OBJCOPY = avr-objcopy
 RM      = rm -f
 MKDIR	= mkdir -p
+AVRDUDE = avrdude
 #######################################
 
 # file that includes all dependancies
@@ -53,7 +59,7 @@ $(OUTDIR)/%.elf: $(OBJECTS)
 	$(CC) $(OBJECTS) $(LDFLAGS) $(LIBS) -o $@
 
 $(OUTDIR)/%.hex: $(OUTDIR)/%.elf
-	$(OBJCOPY) -O ihex $< $@
+	$(OBJCOPY) -O ihex -R .eeprom $< $@
 
 $(OUTDIR)/%.o: src/%.c | $(OUTDIR)
 	$(CC) -c $(CFLAGS) -o $@ $<
@@ -64,6 +70,14 @@ $(OUTDIR)/%.o: src/%.c | $(OUTDIR)
 # create the output directory
 $(OUTDIR):
 	$(MKDIR) $(OUTDIR)
+
+# download to mcu flash
+flash: $(OUTDIR)/$(TARGET).hex
+	$(AVRDUDE) $(AVRDUDE_FLAGS) -U flash:w:$<
+
+# verify mcu flash
+verify: $(OUTDIR)/$(TARGET).hex
+	$(AVRDUDE) $(AVRDUDE_FLAGS) -U flash:v:$<
 
 clean:
 	-$(RM) $(OUTDIR)/*
